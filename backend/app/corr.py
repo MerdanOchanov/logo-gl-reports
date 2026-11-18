@@ -572,8 +572,8 @@ def stats(year: int | None = None) -> dict:
             v["amount"] = round(v["amount"], 2)
             v["share"] = round(v["amount"] / tot_all, 6) if tot_all else 0.0
         return {"total": round(tot_all, 2), "methods": tot_m, "disputed": int(tot_dis), "fiches": int(tot_fiches), "years": years,
-                "note": "Суммы — в " + dsparams.local_forms()[1] + " (после деноминации); method: SEQ — однозначно по порядку строк, CROSS — по CROSSCODE, "
-                        "PROP — пропорционально (расчётная), MANUAL — ручное закрепление"}
+                "note": "Суммы — в " + dsparams.local_forms()[1] + " (после деноминации); способы: по порядку строк, по перекрёстной ссылке проводок, "
+                        "пропорционально (расчётная), вручную (закреплено пользователем)"}
     finally:
         conn.close()
 

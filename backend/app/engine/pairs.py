@@ -417,6 +417,6 @@ def method_check(ctx: Context, d: dict) -> dict:
     if not total:
         return {"name": "Метод корреспонденции", "ok": True, "detail": "нет проводок"}
     sh = lambda k: f"{m.get(k, 0.0) / total * 100:.2f}%"  # noqa: E731
-    det = (f"SEQ {sh('SEQ')}, CROSSCODE {sh('CROSS')}, расчётные (PROP) {sh('PROP')}, ручные {sh('MANUAL')}; спорные: "
+    det = (f"по порядку {sh('SEQ')}, по перекрёстной ссылке {sh('CROSS')}, пропорционально {sh('PROP')}, вручную {sh('MANUAL')}; спорные: "
            f"{C.fmt_money(ctx.out(m['_disputed']))}")
     return {"name": "Доля методов корреспонденции (весь оборот периода)", "ok": True, "detail": det}

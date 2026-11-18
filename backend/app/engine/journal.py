@@ -241,7 +241,7 @@ def run(defn: dict) -> dict:
     else:
         checks.append({"name": "Σ по графам = итог", "ok": abs(shown - tot) < TOL, "detail": C.fmt_money(ctx.out(tot))})
     if calc:
-        warnings.append("Часть корреспонденции определена пропорционально (метод PROP) — графы по таким ордерам расчётные")
+        warnings.append("Часть корреспонденции определена пропорционально — графы по таким ордерам расчётные")
     checks.append(P.method_check(ctx, d))
     return P.finish(d, ctx, "Журнал-ордер" if cr else "Ведомость", f"{'по кредиту' if cr else 'по дебету'} счёта {P.spec_label(masks, groups) or 'по фильтрам'}",
                     cols, rows, tv, checks, warnings)

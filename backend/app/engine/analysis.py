@@ -152,7 +152,7 @@ def run(defn: dict) -> dict:
                              + ("" if abs(tot["open"] + tot["dt"] - tot["kt"] - tot["close"]) < TOL
                                 else " (перенос остатков между годами, см. «Разрывы переноса»)")})
     if calc:
-        warnings.append("Корреспонденты, помеченные «расчётная», получены пропорциональным распределением (N:M без взаимного CROSSCODE)")
+        warnings.append("Корреспонденты, помеченные «расчётная», получены пропорциональным распределением (когда у проводок нет взаимной перекрёстной ссылки)")
     checks.append(P.method_check(ctx, d))
     return P.finish(d, ctx, "Анализ счёта", f"корреспонденты: {_axis_label(axis)}", cols, rows_out, totals, checks, warnings)
 

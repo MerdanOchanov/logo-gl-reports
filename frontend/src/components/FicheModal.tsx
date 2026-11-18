@@ -5,7 +5,7 @@ import { ErrorBox, Modal } from './ui'
 
 type PairRow = { dt_account: string; kt_account: string; amount: number }
 
-const METHOD: Record<string, string> = { PROP: 'расчётная', CROSS: 'по перекрёстной ссылке', SEQ: 'по порядку', MANUAL: 'вручную' }
+const METHOD: Record<string, string> = { PROP: 'пропорционально', CROSS: 'по перекрёстной ссылке', SEQ: 'по порядку', MANUAL: 'вручную' }
 
 export default function FicheModal({
   firm,

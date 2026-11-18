@@ -152,6 +152,7 @@ def remove(did: int, confirm: str) -> dict:
         raise DatasetError(400, "Для удаления введите название набора данных «%s»" % row["name"])
     rt = dsctx.get_runtime(did)
     if rt is not None and dsctx.busy(rt):
+        rt.scan_cancel.set()
         raise DatasetError(409, "В наборе данных «%s» идёт синхронизация или чтение фирм из Logo: дождитесь окончания" % row["name"])
     moved = ""
     d = config.DATA_DIR / row["path"]

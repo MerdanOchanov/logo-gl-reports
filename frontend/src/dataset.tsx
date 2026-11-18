@@ -64,6 +64,11 @@ export function paramsUnset(ds: DatasetInfo | null | undefined): boolean {
   return ds.configured === false || !code || code === 'LOCAL'
 }
 
+/** В наборе нет книг Logo (не настроен): показывать годы и данные пока нечего. */
+export function isNoBooks(ds: DatasetInfo | null | undefined): boolean {
+  return !!ds && (ds.state === 'new' || (ds.books_main ?? 0) === 0)
+}
+
 export function useDataset(): { data: DatasetInfo | null; reload: () => void } {
   const [d, setD] = useState<DatasetInfo | null>(cache)
   useEffect(() => {
@@ -116,7 +121,7 @@ export function DatasetSwitcher() {
   }
   if (!data) return null
   return (
-    <span className="status" title={'Набор данных: ' + data.name + (data.connection ? ` · ${data.connection.server} / ${data.connection.database}` : '')}>
+    <span className="status ds-name" title={'Набор данных: ' + data.name + (data.connection ? ` · ${data.connection.server} / ${data.connection.database}` : '')}>
       {title}
     </span>
   )

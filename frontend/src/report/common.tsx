@@ -95,7 +95,7 @@ function AttrBody({ def, setDef }: BlockProps) {
         Отчёт строится только по проводкам с выбранными признаками. Пусто — без отбора. Внутри одного признака значения складываются («или»), между признаками действует «и». Список — за {year} год.
       </div>
       <ErrorBox error={error} />
-      {loading && !data && <div className="muted">Загрузка…</div>}
+      {loading && !data && <div className="muted" style={{ minHeight: 150 }}>Загрузка…</div>}
       {data && (
         <>
           <MultiPick title="Подразделение" sel={def.filters.branches ?? []} onChange={(v) => set('branches', v)} items={data.branches.map((b) => ({ id: b.id, label: b.name, count: b.lines, unit: 'пров.' }))} />

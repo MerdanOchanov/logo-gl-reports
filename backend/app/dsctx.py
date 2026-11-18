@@ -34,6 +34,7 @@ class DatasetRuntime:
     ping: dict = field(default_factory=lambda: {"t": 0.0, "ok": False})
     scan: dict = field(default_factory=lambda: {"state": "idle", "done": 0, "total": 0, "current": "", "message": "", "scanned_at": None, "error": None})
     scan_lock: threading.Lock = field(default_factory=threading.Lock)
+    scan_cancel: threading.Event = field(default_factory=threading.Event)     # просьба остановить чтение фирм (архивация/удаление набора, «Остановить»)
     books_ver: int = 0                        # растёт при записи книг/параметров
     plan_cache: Optional[tuple] = None        # (путь настроек, books_ver, PlanProfile) - кэш plan.current()
     cache_kb: Optional[int] = None            # PRAGMA cache_size (КБ) соединений кэша; None = config.CACHE_PAGES_KB

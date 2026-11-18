@@ -185,7 +185,7 @@ def run(defn: dict) -> dict:
                        "detail": "по всем разделам" if not chk_close else f"расхождений: {chk_close} (перенос остатков между годами)"})
     props = sum(1 for dd in data if dd["prop"])
     if props:
-        warnings.append("В графах есть корреспонденция, определённая пропорционально (метод PROP) — см. «Доля методов»")
+        warnings.append("В графах есть корреспонденция, определённая пропорционально — см. «Доля методов корреспонденции»")
     checks.append(P.method_check(ctx, d))
     return P.finish(d, ctx, "Главная книга", f"графы: {'счета уровня %d' % axis.level if axis.kind == 'account' else 'группы %s' % axis.cid}",
                     cols, rows, totals, checks, warnings)

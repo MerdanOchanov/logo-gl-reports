@@ -26,7 +26,7 @@ export function fmtCompact(v: unknown, mode: NumFmt): string {
   if (mode === 'thousand') return fix(nf0.format(n / 1e3))
   if (mode === 'million') return fix(nf1.format(n / 1e6))
   if (a >= 1e6) return fix(nf1.format(n / 1e6)) + ' млн'
-  if (a >= 1e3) return fix(nf0.format(n / 1e3)) + ' тыс'
+  if (a >= 1e3) return fix(nf0.format(n / 1e3)) + ' тыс.'
   return fix(nf0.format(n))
 }
 

@@ -710,6 +710,8 @@ export interface DatasetCreate {
 
 export class ApiError extends Error {
   status: number
+  /** Сервер сообщил, что пользователей ещё нет (ответ 401 на /me). */
+  noUsers = false
   constructor(message: string, status: number) {
     super(message)
     this.status = status
@@ -800,7 +802,7 @@ function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 /** Ответы этих разделов — тексты сервера, написанные для человека: не заменять общими фразами. */
-const TRUSTED = /^\/(connections|books|dataset|users)/
+const TRUSTED = /^\/(connections|books|dataset|users|login)/
 
 async function realRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
   let resp: Response
@@ -815,13 +817,23 @@ async function realRequest<T>(method: string, path: string, body?: unknown): Pro
   }
   if (!resp.ok) {
     if (resp.status === 401 && path !== '/me' && path !== '/login') authHooks.onUnauthorized()
+    let noUsers = false
+    if (resp.status === 401) {
+      try {
+        noUsers = (await resp.clone().json())?.no_users === true
+      } catch {
+        /* не JSON */
+      }
+    }
     const text = await errText(resp, TRUSTED.test(path))
     // выбранный ранее набор исчез, закрыт или в архиве — молча возвращаемся к набору по умолчанию
     if (datasetCtl.id != null && !/^\/(me|login|logout|users|connections)/.test(path) && /набор/i.test(text) && (resp.status === 404 || resp.status === 403 || (resp.status === 409 && /в архиве/.test(text)))) {
       setSelectedDataset(null)
       authHooks.onDatasetLost()
     }
-    throw new ApiError(text, resp.status)
+    const ae = new ApiError(text, resp.status)
+    ae.noUsers = noUsers
+    throw ae
   }
   if (resp.status === 204) return undefined as T
   return (await resp.json()) as T

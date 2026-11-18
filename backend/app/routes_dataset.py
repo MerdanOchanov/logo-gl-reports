@@ -274,6 +274,10 @@ def datasets_update(did: int, body: dict = Body(...)):
         err(404, str(e.args[0]))
     except ValueError as e:
         err(400, str(e))
+    if ds["archived"]:                      # набор ушёл в архив - чтение фирм из Logo не должно продолжаться в фоне
+        rt0 = dsctx.get_runtime(did)
+        if rt0 is not None:
+            rt0.scan_cancel.set()
     return _brief(ds, True, "admin")
 
 
@@ -290,7 +294,9 @@ def datasets_delete(did: int, confirm: Optional[str] = Query(None), body: Option
 @router.get("/dataset")
 def dataset_get(request: Request):
     ds = _current_row()
-    out = _dataset_public(ds, True, getattr(request.state, "dataset_role", None) or "admin")
+    user = getattr(request.state, "user", None) or {"role": "admin"}
+    is_admin = user.get("role") == "admin" or not auth.enabled()       # подключение к Logo - только администратору установки
+    out = _dataset_public(ds, is_admin, getattr(request.state, "dataset_role", None) or "admin")
     out["params"] = dsparams.get_all()
     out["books_count"] = out["books_total"]
     out["cache_bytes"] = cache.cache_size_bytes()
@@ -338,13 +344,21 @@ def _scan_save(payload: dict) -> None:
         conn.close()
 
 
+class _ScanCancelled(Exception):
+    pass
+
+
 def _scan_job(rt, firms) -> None:
     st = rt.scan
 
     def progress(done, total, current, message):
+        if rt.scan_cancel.is_set():
+            raise _ScanCancelled()
         st.update(done=done, total=total, current=str(current or ""), message=message or "")
     try:
         sc = wizard.scan(firms=firms, progress=progress)
+        if rt.scan_cancel.is_set():
+            raise _ScanCancelled()
         prof = (sc.get("params_detected") or {}).get("plan_profile", {}).get("profile") or {}
         st.update(message="Проверка переноса остатков между книгами")
         sc["transitions"] = wizard.transition_stats(wizard.candidate_pairs(sc), root_len=int(prof.get("root_len") or 3),
@@ -352,6 +366,8 @@ def _scan_job(rt, firms) -> None:
         prop = wizard.propose(sc)
         _scan_save({"proposal": prop, "sources": len(sc.get("sources") or [])})
         st.update(state="done", message="Готово", scanned_at=prop.get("scanned_at"), error=None)
+    except _ScanCancelled:
+        st.update(state="idle", error=None, message="Чтение фирм из Logo остановлено")
     except Exception as e:
         st.update(state="error", error=str(e), message="Чтение фирм из Logo не удалось")
 
@@ -362,10 +378,22 @@ def books_scan(body: dict = Body(default={})):
     with rt.scan_lock:
         if rt.scan["state"] == "running":
             err(409, "Чтение фирм из Logo уже идёт")
+        rt.scan_cancel.clear()
         rt.scan.update(state="running", done=0, total=0, current="", message="Запуск", error=None)
     firms = body.get("firms") if isinstance(body, dict) else None
     threading.Thread(target=dsctx.run_in, args=(rt, _scan_job, rt, firms), daemon=True).start()
     return JSONResponse({"started": True}, status_code=202)
+
+
+@router.post("/books/scan/cancel")
+def books_scan_cancel():
+    """Остановить чтение фирм из Logo (останавливается между источниками)."""
+    rt = dsctx.current()
+    if rt.scan["state"] != "running":
+        return {"ok": True, "running": False}
+    rt.scan_cancel.set()
+    rt.scan.update(message="Остановка чтения фирм из Logo…")
+    return {"ok": True, "running": True}
 
 
 @router.get("/books/scan")

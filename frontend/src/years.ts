@@ -47,6 +47,19 @@ export function useYearInfos(): YearInfo[] {
   return infos
 }
 
+/** Список лет уже получен от сервера (успешно или нет) — до этого экраны не должны строить списки лет. */
+export function useYearsLoaded(): boolean {
+  const [ok, setOk] = useState(cache !== null)
+  useEffect(() => {
+    let alive = true
+    loadInfos().then(() => alive && setOk(true))
+    return () => {
+      alive = false
+    }
+  }, [])
+  return ok
+}
+
 /** Годы, доступные на сервере (по возрастанию). */
 export function useYears(): number[] {
   const infos = useYearInfos()

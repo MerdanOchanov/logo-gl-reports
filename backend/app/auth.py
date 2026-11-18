@@ -19,6 +19,7 @@ import json
 import os
 import re
 import secrets
+import threading
 import time
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
@@ -349,14 +350,84 @@ def require_role(role: str):
 # маршруты
 # ---------------------------------------------------------------------------------------------
 
+NO_USERS_TEXT = ("Пользователи ещё не заведены. Администратору сервера нужно задать первого администратора при запуске программы — "
+                 "см. раздел «Вход по паролю» в инструкции по установке")
+
+# защита от перебора пароля: в памяти процесса; ключи — (логин без регистра, адрес) и адрес
+_FAIL_FREE = 5            # неудачных попыток подряд без паузы
+_LOCK_FIRST = 60          # пауза после 5-й неудачи, сек; дальше удваивается
+_LOCK_MAX = 15 * 60
+_fails: dict = {}         # ключ -> [число неудач подряд, заблокировано до (monotonic)]
+_fails_lock = threading.Lock()
+_DUMMY_HASH = None
+
+
+def reset_throttle() -> None:
+    with _fails_lock:
+        _fails.clear()
+
+
+def _client_addr(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
+def _throttle_keys(login: str, addr: str) -> list:
+    return [("pair", login.casefold(), addr), ("addr", addr)]
+
+
+def _locked_for(keys: list) -> int:
+    """Сколько секунд ещё ждать (0 — можно пробовать)."""
+    now = time.monotonic()
+    with _fails_lock:
+        return max([int(v[1] - now) + 1 for k in keys for v in [_fails.get(k)] if v and v[1] > now] or [0])
+
+
+def _register_fail(keys: list) -> None:
+    now = time.monotonic()
+    with _fails_lock:
+        for k in keys:
+            rec = _fails.setdefault(k, [0, 0.0])
+            rec[0] += 1
+            if rec[0] >= _FAIL_FREE:
+                rec[1] = now + min(_LOCK_MAX, _LOCK_FIRST * 2 ** (rec[0] - _FAIL_FREE))
+        if len(_fails) > 5000:       # не растём без предела
+            for k in [k for k, v in _fails.items() if v[1] < now][:2500]:
+                _fails.pop(k, None)
+
+
+def _register_ok(keys: list) -> None:
+    with _fails_lock:
+        for k in keys:
+            _fails.pop(k, None)
+
+
 @router.post("/login")
-def login(response: Response, body: dict = Body(...)):
+def login(request: Request, response: Response, body: dict = Body(...)):
+    global _DUMMY_HASH
     if not enabled():
         return {"login": "admin", "role": "admin", "auth": False}
     ensure_bootstrap()
-    u = get_user_by_login(str(body.get("login") or "").strip())
-    if not u or not verify_password(str(body.get("password") or ""), u["pass_hash"]):
+    if registry.count_users() == 0:
+        return JSONResponse({"detail": NO_USERS_TEXT, "no_users": True}, status_code=401)
+    name = str(body.get("login") or "").strip()
+    keys = _throttle_keys(name, _client_addr(request))
+    wait = _locked_for(keys)
+    if wait:
+        mins = max(1, -(-wait // 60))
+        return JSONResponse({"detail": f"Слишком много неудачных попыток входа. Повторите через {mins} мин."}, status_code=429,
+                            headers={"Retry-After": str(wait)})
+    u = get_user_by_login(name)
+    if u is None:                    # несуществующий логин: считаем хэш впустую, чтобы время ответа не выдавало логин
+        if _DUMMY_HASH is None:
+            _DUMMY_HASH = hash_password("dummy-password")
+        verify_password(str(body.get("password") or ""), _DUMMY_HASH)
+        ok = False
+    else:
+        ok = verify_password(str(body.get("password") or ""), u["pass_hash"])
+    if not ok:
+        _register_fail(keys)
         raise HTTPException(401, "Неверный логин или пароль")
+    _register_ok(keys)
     response.set_cookie(COOKIE, make_token(u), httponly=True, samesite="lax", max_age=SESSION_TTL, path="/")
     return {"login": u["login"], "role": u["role"], "auth": True}
 
@@ -373,7 +444,13 @@ def me(request: Request):
     X-Dataset/?ds=, если он доступен, иначе набор по умолчанию, иначе первый доступный."""
     u = getattr(request.state, "user", None) or current_user(request)
     if u is None:
-        raise HTTPException(401, "Требуется вход в систему")
+        out = {"detail": "Требуется вход в систему"}
+        try:
+            if enabled() and registry.count_users() == 0:
+                out["no_users"] = True
+        except Exception:
+            pass
+        return JSONResponse(out, status_code=401)
     try:
         acc = [a for a in accessible_datasets(u) if not a["ds"]["archived"]]
         want = requested_dataset_id(request)
@@ -411,7 +488,7 @@ def users_update(uid: int, request: Request, body: dict = Body(...)):
     role = _check_role(body["role"]) if "role" in body else u["role"]
     ph = hash_password(_check_password(body["password"])) if body.get("password") else u["pass_hash"]
     if u["role"] == "admin" and role != "admin" and _admin_count() <= 1:
-        raise HTTPException(400, "Нельзя снять роль admin у последнего администратора")
+        raise HTTPException(400, "Нельзя снять роль администратора у последнего администратора")
     registry.update_user(uid, role, ph)
     try:
         if isinstance(body.get("datasets"), list):

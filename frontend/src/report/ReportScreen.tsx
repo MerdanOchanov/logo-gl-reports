@@ -4,9 +4,10 @@ import DrillPanel, { type DrillTarget } from '../components/DrillPanel'
 import FicheModal from '../components/FicheModal'
 import ResultTable from '../components/ResultTable'
 import ChecksBar from '../components/Checks'
-import { ErrorBox, SaveDialog } from '../components/ui'
+import { ErrorBox, NotConfigured, SaveDialog } from '../components/ui'
 import { defaultDefinition, fillCheckNames, fmtDate, normalizeDefinition, typeLabel } from '../format'
-import { currencyOptions, getDataset, paramsUnset, useDataset } from '../dataset'
+import { useYearsLoaded } from '../years'
+import { currencyOptions, getDataset, isNoBooks, paramsUnset, useDataset } from '../dataset'
 import { navigate, setNavGuard } from '../router'
 import { openAccountCard } from './cardLink'
 import { AccountFilterBlock, AttrFilterSection, CurrencyBlock, PeriodBlock, Section, hasAttrFilter, type SetDef } from './common'
@@ -98,6 +99,7 @@ export default function ReportScreen({ reportId, newType, preset }: Props) {
   // новый отчёт создаётся после чтения параметров набора: валюта по умолчанию — из набора
   const [def, setDefState] = useState<Definition | null>(null)
   const { data: ds } = useDataset()
+  const yearsLoaded = useYearsLoaded()
   const [ranKey, setRanKey] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
   const [running, setRunning] = useState(false)
@@ -219,6 +221,22 @@ export default function ReportScreen({ reportId, newType, preset }: Props) {
     return () => clearTimeout(t)
   }, [info])
 
+  if (!isNoBooks(ds) && !yearsLoaded && def) {
+    return (
+      <div className="page">
+        <div className="muted pad">Загрузка…</div>
+      </div>
+    )
+  }
+
+  if (isNoBooks(ds)) {
+    return (
+      <div className="page">
+        <NotConfigured text="Отчёты строятся по книгам Logo — добавьте книги за нужные годы." />
+      </div>
+    )
+  }
+
   if (!def) {
     return (
       <div className="page">
@@ -317,6 +335,7 @@ export default function ReportScreen({ reportId, newType, preset }: Props) {
       else mode = formulaHasTurnover(def, row.code) ? 'turn' : 'close'
     }
     setDrill({
+      reportName: name.trim() || def.title || typeLabel(def.type),
       title: `${row.code ?? ''} ${row.name ?? ''} — ${col.group ? col.group + ', ' : ''}${col.title}`.trim(),
       ctx: { period, include_closing: def.include_closing, currency: def.currency, scale: def.scale, denominate: def.denominate },
       note:

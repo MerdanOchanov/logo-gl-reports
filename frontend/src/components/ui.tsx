@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, errMsg, type Status } from '../api'
+import { paramsUnset, useDataset } from '../dataset'
 
 const modalStack: number[] = []
 let modalSeq = 0
@@ -75,14 +76,27 @@ export function ErrorBox({ error, onClose }: { error: string | null; onClose?: (
 
 /** Набор данных без книг: понятное сообщение и переход к настройке книг. */
 export function NotConfigured({ text }: { text?: string }) {
+  const { data: ds } = useDataset()
+  const both = paramsUnset(ds)
   return (
     <div className="msg warn">
       <span>
         <b>Набор ещё не настроен.</b> {text ?? 'В нём нет книг Logo, поэтому показывать пока нечего.'}
+        {both && (
+          <ol style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+            <li>Задайте параметры набора: валюту, кодировку и план счетов (Настройки → Параметры набора).</li>
+            <li>Добавьте книги Logo за нужные годы (Настройки → Книги и годы).</li>
+          </ol>
+        )}
       </span>
       <button className="btn small" onClick={() => (window.location.hash = '#/settings/books')}>
-        Настройки → Книги и годы
+        Перейти к книгам
       </button>
+      {both && (
+        <button className="btn small" onClick={() => (window.location.hash = '#/settings/params')}>
+          Перейти к параметрам
+        </button>
+      )}
     </div>
   )
 }

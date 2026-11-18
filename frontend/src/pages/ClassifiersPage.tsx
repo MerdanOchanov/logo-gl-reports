@@ -1,7 +1,8 @@
 import { askConfirm, askText } from '../components/confirm'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, errMsg, type Classifier, type ClassifierInfo, type ClsGroup, type ClsRule, type ResolveResult, type RuleKind } from '../api'
-import { ErrorBox, Modal, useLoad } from '../components/ui'
+import { ErrorBox, Modal, NotConfigured, useLoad } from '../components/ui'
+import { isNoBooks, useDataset } from '../dataset'
 import { fmtMoney } from '../format'
 import { navigate, setNavGuard } from '../router'
 
@@ -33,6 +34,16 @@ function List() {
       setErr(errMsg(e))
     }
   }
+  const { data: ds } = useDataset()
+  if (isNoBooks(ds))
+    return (
+      <div className="page">
+        <div className="page-head">
+          <h2>Классификаторы</h2>
+        </div>
+        <NotConfigured text="Классификаторы группируют счета из книг Logo — добавьте книги за нужные годы." />
+      </div>
+    )
   return (
     <div className="page">
       <div className="page-head">

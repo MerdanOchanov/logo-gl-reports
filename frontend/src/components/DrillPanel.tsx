@@ -15,6 +15,8 @@ export interface DrillTarget {
   ctx?: { period: { date_from: string; date_to: string }; include_closing: boolean; currency?: string; scale?: number; denominate?: boolean }
   /** Пояснение над таблицей */
   note?: string
+  /** Название отчёта — для заголовка листа Excel */
+  reportName?: string
   /** Дополнительные колонки, включённые для этого открытия (например «Количество» из графы количества) */
   extra?: string[]
 }
@@ -49,7 +51,7 @@ export default function DrillPanel({ target, onClose }: { target: DrillTarget; o
   const onExcel = async () => {
     setExporting(true)
     try {
-      saveBlob(await api.exportDrill({ ...target.req, extra, limit: 50000, title: target.title }), 'Расшифровка')
+      saveBlob(await api.exportDrill({ ...target.req, extra, limit: 50000, title: target.reportName ? `${target.reportName} — ${target.title}` : target.title }), 'Расшифровка')
     } catch (e) {
       setError(errMsg(e))
     } finally {

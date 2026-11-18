@@ -29,7 +29,7 @@ const NAV = [
   { path: '/faq', label: 'Вопросы и ответы', match: /^\/faq/ },
 ]
 
-function Login({ onDone }: { onDone: (m: Me) => void }) {
+function Login({ onDone, noUsers, expired }: { onDone: (m: Me) => void; noUsers: boolean; expired: boolean }) {
   const [login, setLogin] = useState('')
   const [pass, setPass] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -37,12 +37,18 @@ function Login({ onDone }: { onDone: (m: Me) => void }) {
     try {
       onDone(await api.login(login.trim(), pass))
     } catch (e) {
-      setErr(e instanceof ApiError && e.status === 401 ? 'Неверный логин или пароль.' : errMsg(e))
+      setErr(e instanceof ApiError && e.status === 401 && (!e.message || e.message === 'Требуется вход в систему.') ? 'Неверный логин или пароль.' : errMsg(e))
     }
   }
   return (
     <div className="login-box" onKeyDown={(e) => e.key === 'Enter' && go()}>
       <h2>Вход</h2>
+      {noUsers && (
+        <div className="login-hint">
+          Пользователи ещё не заведены. Администратору сервера нужно задать первого администратора при запуске программы — см. раздел «Вход по паролю» в инструкции по установке.
+        </div>
+      )}
+      {expired && !err && <div className="login-hint">Время входа истекло, войдите снова.</div>}
       <ErrorBox error={err} />
       <label>
         логин
@@ -63,6 +69,8 @@ export default function App() {
   // экран входа — только если /api/me ответил 401
   const [me, setMe] = useState<Me | null>(null)
   const [needLogin, setNeedLogin] = useState(false)
+  const [noUsers, setNoUsers] = useState(false)
+  const [expired, setExpired] = useState(false)
   const [ready, setReady] = useState(false)
   // «эпоха» набора: при смене набора всё содержимое окна создаётся заново, чтобы не осталось данных прежнего набора
   const [epoch, setEpoch] = useState(0)
@@ -115,7 +123,7 @@ export default function App() {
   )
 
   useEffect(() => {
-    authHooks.onUnauthorized = () => setNeedLogin(true)
+    authHooks.onUnauthorized = () => (setExpired(true), setNeedLogin(true))
     authHooks.onDatasetLost = () => {
       if (lost.current) return
       lost.current = true
@@ -131,7 +139,12 @@ export default function App() {
     }
     fetchMe()
       .then(setMe)
-      .catch((e) => e instanceof ApiError && e.status === 401 && setNeedLogin(true))
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 401) {
+          setNoUsers(e.noUsers)
+          setNeedLogin(true)
+        }
+      })
       .finally(() => setReady(true))
   }, [fetchMe])
 
@@ -147,8 +160,11 @@ export default function App() {
   if (needLogin)
     return (
       <Login
+        noUsers={noUsers}
+        expired={expired}
         onDone={(m) => {
           setMe(m)
+          setExpired(false)
           setNeedLogin(false)
           setEpoch((x) => x + 1)
         }}
@@ -180,7 +196,7 @@ function Shell({ me, onLogout }: { me: Me | null; onLogout: () => void }) {
   const canEdit = useCanEdit()
   let body
   let m: RegExpExecArray | null
-  if ((m = /^\/report\/new\/(\w+)(?:\?(.*))?/.exec(route)))
+  if ((m = /^\/report\/new(?:\/([^?]*))?(?:\?(.*))?$/.exec(route)))
     body = REPORT_TYPES.some((t) => t.type === m![1]) ? (
       <ReportScreen key={'new' + route} newType={m[1] as ReportType} preset={new URLSearchParams(m[2] ?? '')} />
     ) : (
@@ -224,14 +240,14 @@ function Shell({ me, onLogout }: { me: Me | null; onLogout: () => void }) {
             </a>
           ))}
         </nav>
-        <div className="spacer" />
+        <div className="top-right">
         <a href="#/faq" className="help-link" title="Вопросы и ответы" onClick={(e) => (e.preventDefault(), navigate('/faq'))}>
           ? Справка
         </a>
         <DatasetSwitcher />
         <StatusBadge />
         {me && (
-          <span className="status">
+          <span className="status user-box">
             {me.login}
             {me.auth && <span className="muted" style={{ color: '#9fb0c6' }}> ({ROLE_RU[me.role] ?? me.role})</span>}
             {me.auth && (
@@ -241,6 +257,7 @@ function Shell({ me, onLogout }: { me: Me | null; onLogout: () => void }) {
             )}
           </span>
         )}
+        </div>
       </header>
       <main className={'content' + (canEdit ? '' : ' readonly')}>
         {!canEdit && <div className="msg warn no-print">Режим просмотра: вы можете формировать отчёты, раскрывать их и выгружать в Excel; сохранять и менять данные — нет.</div>}

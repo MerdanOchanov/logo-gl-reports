@@ -12,7 +12,7 @@ from . import common as C
 from . import pairs as P
 from .common import Context, ReportError, TOL
 
-METHOD_TITLE = {"SEQ": "по порядку", "CROSS": "CROSSCODE", "PROP": "расчётная", "MANUAL": "ручная"}
+METHOD_TITLE = {"SEQ": "по порядку", "CROSS": "по перекрёстной ссылке", "PROP": "пропорционально", "MANUAL": "вручную"}
 
 
 def run(defn: dict) -> dict:

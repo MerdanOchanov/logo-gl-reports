@@ -418,7 +418,11 @@ def get_user_by_login(login: str) -> Optional[dict]:
     _ensure()
     conn = connect()
     try:
-        return _user_row(conn.execute("SELECT id, login, pass_hash, role FROM users WHERE login=?", (login,)).fetchone())
+        row = conn.execute("SELECT id, login, pass_hash, role FROM users WHERE login=?", (login,)).fetchone()
+        if row is None:        # без учёта регистра (в том числе для кириллицы)
+            key = (login or "").casefold()
+            row = next((r for r in conn.execute("SELECT id, login, pass_hash, role FROM users") if (r["login"] or "").casefold() == key), None)
+        return _user_row(row)
     finally:
         conn.close()
 
@@ -441,6 +445,9 @@ def insert_user(login: str, pass_hash: str, role: str) -> int:
     _ensure()
     conn = connect()
     try:
+        key = login.casefold()
+        if any((r[0] or "").casefold() == key for r in conn.execute("SELECT login FROM users")):
+            raise sqlite3.IntegrityError("login exists")
         cur = conn.execute("INSERT INTO users(login, pass_hash, role) VALUES(?,?,?)", (login, pass_hash, role))
         conn.commit()
         return cur.lastrowid

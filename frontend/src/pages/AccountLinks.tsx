@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, errMsg, type AccountLink, type AutoItem, type AutoReport } from '../api'
-import { ErrorBox } from '../components/ui'
+import { ErrorBox, NotConfigured } from '../components/ui'
+import { isNoBooks, useDataset } from '../dataset'
 import { askConfirm } from '../components/confirm'
 import { fmtMoney } from '../format'
 import { useYears } from '../years'
@@ -89,6 +90,8 @@ export default function AccountLinks() {
   const ed = (l: AccountLink, p: Partial<AccountLink>) => setEdited((e) => ({ ...e, [l.id!]: { ...e[l.id!], ...p } }))
 
   const s = rep?.summary
+  const { data: ds } = useDataset()
+  if (isNoBooks(ds)) return <NotConfigured text="Связи счетов строятся по планам счетов разных лет — добавьте книги Logo за нужные годы." />
 
   return (
     <>

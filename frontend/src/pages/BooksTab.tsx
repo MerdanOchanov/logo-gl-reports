@@ -322,7 +322,7 @@ export default function BooksTab() {
       <div className="toolbar">
         <h3 style={{ margin: 0 }}>Текущая разметка</h3>
         <span className="muted">
-          основных книг: {mainCount}, всего: {base.length}
+          {data ? `основных книг: ${mainCount}, всего: ${base.length}` : 'загрузка списка…'}
           {ds?.last_sync_at ? ` · данные загружены ${fmtDateTime(ds.last_sync_at)}` : ''}
         </span>
         <div className="spacer" />
@@ -336,13 +336,14 @@ export default function BooksTab() {
       </div>
 
       {!data && !error && <div className="muted pad">Загрузка…</div>}
+      <div className="table-scroll">
       <table className="simple books-table">
         <thead>
           <tr>
             <th style={{ width: 60 }}>Год</th>
             <th>Фирма и период Logo</th>
-            <th style={{ width: 190 }}>Даты</th>
-            <th style={{ width: 130 }}>Роль</th>
+            <th style={{ width: 160 }}>Даты</th>
+            <th style={{ width: 110 }}>Роль</th>
             <th style={{ width: 70 }} title="Деление сумм (деноминация): суммы книги делятся на это число">
               Делитель
             </th>
@@ -352,8 +353,8 @@ export default function BooksTab() {
             <th className="r" style={{ width: 80 }}>
               Проводок
             </th>
-            <th style={{ width: 130 }}>Загружено</th>
-            <th style={{ width: 250 }} />
+            <th style={{ width: 110 }}>Загружено</th>
+            <th style={{ width: 170 }} />
           </tr>
         </thead>
         <tbody>
@@ -415,6 +416,7 @@ export default function BooksTab() {
           )}
         </tbody>
       </table>
+      </div>
       <div className="toolbar">
         <button className="btn" onClick={check} disabled={checking || rows.length === 0}>
           {checking ? 'Проверяем…' : 'Проверить'}
