@@ -1,0 +1,15 @@
+; Образец файла настроек. Скопируйте в config.ini (рядом с программой) и поправьте.
+; Переменные окружения (LOGO_SERVER, LOGO_USER, LOGO_PASSWORD, LOGO_DB, LOGO_DRIVER, PORT, AUTH, DATA_DIR) главнее значений из этого файла.
+[logo]
+server = my-sql-server
+user =
+password =
+database = LOGO_DB
+; driver - не указывайте: драйвер ODBC подберётся сам (ODBC Driver 17 / 13, SQL Server Native Client 11.0 / 10.0, SQL Server)
+; driver = ODBC Driver 17 for SQL Server
+
+[app]
+port = 8790
+; auth = 1 включает вход по логину и паролю
+auth = 0
+; data_dir = D:\buhlogo\data
